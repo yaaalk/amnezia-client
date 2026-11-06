@@ -29,6 +29,7 @@
 #include "core/protocols/protocolUtils.h"
 #include "core/utils/constants/configKeys.h"
 #include "core/utils/constants/protocolConstants.h"
+#include "core/utils/networkUtilities.h"
 
 // How many times do we try to reconnect.
 constexpr int MAX_CONNECTION_RETRY = 10;
@@ -152,13 +153,17 @@ void LocalSocketController::activate(const QJsonObject &rawConfig) {
 
   json.insert("serverPublicKey", wgConfig.value(amnezia::configKey::serverPubKey));
   json.insert("serverPskKey", wgConfig.value(amnezia::configKey::pskKey));
-  json.insert("serverIpv4AddrIn", wgConfig.value(amnezia::configKey::hostName));
-  //  json.insert("serverIpv6AddrIn", QJsonValue(hop.m_server.ipv6AddrIn()));
+  const QString serverHost = wgConfig.value(amnezia::configKey::hostName).toString();
+  if (NetworkUtilities::checkIPv6Format(serverHost)) {
+    json.insert("serverIpv6AddrIn", serverHost);
+    json.insert("serverIpv6Gateway", serverHost);
+  } else {
+    json.insert("serverIpv4AddrIn", serverHost);
+    json.insert("serverIpv4Gateway", serverHost);
+  }
   json.insert("deviceMTU", wgConfig.value(amnezia::configKey::mtu));
 
   json.insert("serverPort", wgConfig.value(amnezia::configKey::port).toInt());
-  json.insert("serverIpv4Gateway", wgConfig.value(amnezia::configKey::hostName));
-  //  json.insert("serverIpv6Gateway", QJsonValue(hop.m_server.ipv6Gateway()));
 
   if (wgConfig.contains(amnezia::configKey::persistentKeepAlive)) {
     json.insert("persistentKeepalive",

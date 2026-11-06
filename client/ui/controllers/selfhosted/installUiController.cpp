@@ -614,12 +614,35 @@ void InstallUiController::clearProcessedServerCredentials()
 
 void InstallUiController::setProcessedServerCredentials(const QString &hostName, const QString &userName, const QString &secretData)
 {
-    m_processedServerCredentials.hostName = hostName;
-    if (m_processedServerCredentials.hostName.contains(":")) {
-        m_processedServerCredentials.port = m_processedServerCredentials.hostName.split(":").at(1).toInt();
-        m_processedServerCredentials.hostName = m_processedServerCredentials.hostName.split(":").at(0);
+    QString host = hostName.trimmed();
+    int port = 22;
+
+    if (host.startsWith('[')) {
+        int closingBracket = host.indexOf(']');
+        if (closingBracket != -1) {
+            QString ipv6 = host.mid(1, closingBracket - 1);
+            if (closingBracket + 1 < host.length() && host.at(closingBracket + 1) == ':') {
+                bool ok = false;
+                int parsedPort = host.mid(closingBracket + 2).toInt(&ok);
+                if (ok && parsedPort > 0 && parsedPort <= 65535) {
+                    port = parsedPort;
+                }
+            }
+            host = ipv6;
+        }
+    } else if (host.count(':') == 1) {
+        QStringList parts = host.split(':');
+        bool ok = false;
+        int parsedPort = parts.at(1).toInt(&ok);
+        if (ok && parsedPort > 0 && parsedPort <= 65535) {
+            port = parsedPort;
+            host = parts.at(0);
+        }
     }
-    m_processedServerCredentials.userName = userName;
+
+    m_processedServerCredentials.hostName = host;
+    m_processedServerCredentials.port = port;
+    m_processedServerCredentials.userName = userName.trimmed();
     m_processedServerCredentials.secretData = secretData;
 }
 

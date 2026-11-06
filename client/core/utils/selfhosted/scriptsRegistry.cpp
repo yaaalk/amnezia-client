@@ -146,6 +146,11 @@ amnezia::ScriptVars amnezia::genBaseVars(const ServerCredentials &credentials,
             ? NetworkUtilities::getIPAddress(credentials.hostName)
             : credentials.hostName;
     if (!serverIp.isEmpty()) {
+        if (ContainerUtils::isAwgContainer(container) || container == DockerContainer::WireGuard) {
+            if (NetworkUtilities::checkIPv6Format(serverIp) && !serverIp.startsWith('[')) {
+                serverIp = QString("[%1]").arg(serverIp);
+            }
+        }
         vars.append({ { "$SERVER_IP_ADDRESS", serverIp } });
     } else {
         qWarning() << "amnezia::genBaseVars unable to resolve address for credentials.hostName";

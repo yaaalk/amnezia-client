@@ -119,14 +119,19 @@ QStringList NetworkUtilities::summarizeRoutes(const QStringList &ips, const QStr
 
 QString NetworkUtilities::getIPAddress(const QString &host)
 {
-    QHostAddress address(host);
-    if (QAbstractSocket::IPv4Protocol == address.protocol()) {
-        return host;
-    } else if (QAbstractSocket::IPv6Protocol == address.protocol()) {
-        return host;
+    QString cleanHost = host.trimmed();
+    if (cleanHost.startsWith('[') && cleanHost.endsWith(']')) {
+        cleanHost = cleanHost.mid(1, cleanHost.length() - 2);
     }
 
-    QList<QHostAddress> addresses = QHostInfo::fromName(host).addresses();
+    QHostAddress address(cleanHost);
+    if (QAbstractSocket::IPv4Protocol == address.protocol()) {
+        return cleanHost;
+    } else if (QAbstractSocket::IPv6Protocol == address.protocol()) {
+        return cleanHost;
+    }
+
+    QList<QHostAddress> addresses = QHostInfo::fromName(cleanHost).addresses();
     if (!addresses.isEmpty()) {
         return addresses.first().toString();
     }
@@ -157,6 +162,20 @@ bool NetworkUtilities::checkIPv4Format(const QString &ip)
     return (addr.protocol() == QAbstractSocket::NetworkLayerProtocol::IPv4Protocol);
 }
 
+bool NetworkUtilities::checkIPv6Format(const QString &ip)
+{
+    if (ip.isEmpty())
+        return false;
+
+    QString cleanIp = ip.trimmed();
+    if (cleanIp.startsWith('[') && cleanIp.endsWith(']')) {
+        cleanIp = cleanIp.mid(1, cleanIp.length() - 2);
+    }
+
+    QHostAddress addr(cleanIp);
+    return (addr.protocol() == QAbstractSocket::NetworkLayerProtocol::IPv6Protocol);
+}
+
 bool NetworkUtilities::checkIpSubnetFormat(const QString &ip)
 {
     if (!ip.contains("/"))
@@ -179,6 +198,17 @@ int NetworkUtilities::AdapterIndexTo(const QHostAddress& dst) {
 #ifdef Q_OS_WIN
     qDebug() << "Getting Current Internet Adapter that routes to"
              << dst.toString();
+    if (dst.protocol() == QAbstractSocket::IPv6Protocol) {
+        sockaddr_in6 sa6 {};
+        sa6.sin6_family = AF_INET6;
+        Q_IPV6ADDR ipv6 = dst.toIPv6Address();
+        memcpy(&sa6.sin6_addr, &ipv6, sizeof(ipv6));
+        DWORD bestIfIndex = 0;
+        if (GetBestInterfaceEx(reinterpret_cast<sockaddr*>(&sa6), &bestIfIndex) == NO_ERROR) {
+            return static_cast<int>(bestIfIndex);
+        }
+        return -1;
+    }
     quint32 ipBigEndian;
     quint32 ip = dst.toIPv4Address();
     qToBigEndian(ip, &ipBigEndian);
